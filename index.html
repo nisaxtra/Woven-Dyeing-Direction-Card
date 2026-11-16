@@ -62,7 +62,7 @@ h1{font-size:24px;letter-spacing:-.01em}
 .in:focus,.f input:focus,.f textarea:focus,.rt input:focus,.rt select:focus{border-color:var(--accent)}
 .meta{color:var(--muted);margin:0 0 8px;font-size:13px}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.lh,.row{display:grid;grid-template-columns:minmax(120px,1.1fr) 104px 90px minmax(0,2fr) 70px minmax(0,1fr) 84px;gap:12px;align-items:center;padding:10px 14px}
+.lh,.row{display:grid;grid-template-columns:minmax(115px,1fr) minmax(105px,1fr) minmax(0,1.8fr) 98px 80px 64px minmax(0,1fr) 78px;gap:10px;align-items:center;padding:10px 14px}
 .lh{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--line);font-weight:500}
 .row{border-bottom:1px solid var(--line);cursor:pointer}
 .row:last-of-type{border-bottom:0}
@@ -120,7 +120,7 @@ h1{font-size:24px;letter-spacing:-.01em}
 .c-step{width:62px}.c-code{width:104px}.c-ratio{width:88px}.c-unit{width:84px}.c-amt{width:128px;text-align:right;padding-right:10px!important}
 .c-feed{width:90px}.c-act{width:130px}.c-del{width:34px}
 .nm{display:block;padding:0 6px;font-size:13px}
-.nm.bad{color:var(--bad)}
+.nm-in.bad{color:var(--bad)}
 .amt small{color:var(--muted);margin-left:4px}
 .x{border:0;background:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:4px 8px;border-radius:4px}
 .x:hover{color:var(--bad);background:var(--bad-soft)}
@@ -278,7 +278,7 @@ h1{font-size:24px;letter-spacing:-.01em}
   </section>
 </div>
 
-<datalist id="dl-dye"></datalist><datalist id="dl-chem"></datalist>
+<datalist id="dl-dye"></datalist><datalist id="dl-chem"></datalist><datalist id="dl-dye-nm"></datalist><datalist id="dl-chem-nm"></datalist>
 <datalist id="dl-machine"></datalist><datalist id="dl-customer"></datalist><datalist id="dl-maker"></datalist>
 <div id="toast" class="toast" role="status" hidden></div>
 
@@ -515,10 +515,11 @@ function fillForm(){
 var HEAD='<thead><tr><th>Step</th><th>Code</th><th>Chemical Name</th><th>Ratio</th><th>Unit</th><th style="text-align:right;padding-right:10px">Amount</th><th>Feed Spd</th><th>Action</th><th></th></tr></thead>';
 function rowHtml(kind,i,r){
   var a='data-t="'+kind+'" data-i="'+i+'"';
+  var dl='dl-'+(kind==='dyes'?'dye':'chem');
   return '<tr '+a+'>'+
   '<td class="c-step"><input '+a+' data-f="step" value="'+esc(r.step)+'" aria-label="Step"></td>'+
-  '<td class="c-code"><input class="mono" '+a+' data-f="code" list="dl-'+(kind==='dyes'?'dye':'chem')+'" inputmode="numeric" autocomplete="off" value="'+esc(r.code)+'" aria-label="Code"></td>'+
-  '<td><span class="nm" data-nm></span></td>'+
+  '<td class="c-code"><input class="mono" '+a+' data-f="code" list="'+dl+'" autocomplete="off" value="'+esc(r.code)+'" aria-label="Code" placeholder="Kode..."></td>'+
+  '<td><input class="nm-in" '+a+' data-f="nameSearch" list="'+dl+'-nm" autocomplete="off" placeholder="Ketik kode / nama..." aria-label="Chemical Name"></td>'+
   '<td class="c-ratio"><input '+a+' data-f="ratio" type="number" step="any" inputmode="decimal" value="'+esc(r.ratio)+'" aria-label="Ratio"></td>'+
   '<td class="c-unit"><select '+a+' data-f="unit" aria-label="Unit"><option value="%"'+(r.unit==='%'?' selected':'')+'>%</option><option value="g/L"'+(r.unit==='g/L'?' selected':'')+'>g/L</option></select></td>'+
   '<td class="c-amt amt" data-amt></td>'+
@@ -531,15 +532,35 @@ function renderRecipe(kind){
   recalc();
   if(!state.writable)$$('#t-'+kind+' input,#t-'+kind+' select,#t-'+kind+' .x').forEach(function(i){i.disabled=true});
 }
+function resolveChemInput(val, kind){
+  var v = String(val || '').trim();
+  if (!v) return '';
+  if (state.chems.has(v)) return v;
+  var m = v.match(/\[([^\]]+)\]$/);
+  if (m && state.chems.has(m[1])) return m[1];
+  var prefGroup = kind === 'dyes' ? 'dye' : 'chem';
+  var low = v.toLowerCase(), found = null;
+  state.chems.forEach(function(item){
+    if (item.group === prefGroup && item.name.toLowerCase() === low) found = item.code;
+  });
+  if (!found) {
+    state.chems.forEach(function(item){
+      if (item.name.toLowerCase() === low) found = item.code;
+    });
+  }
+  return found || v;
+}
 function recalc(){
   var b=calcBase();
   $('#amount').textContent=isFinite(b.L)?fmt(b.L)+' L':'–';
   ['dyes','chems'].forEach(function(kind){
     $$('#t-'+kind+' tbody tr').forEach(function(tr){
       var r=state.cur[kind][+tr.dataset.i];if(!r)return;
-      var n=chemName(r.code),nm=$('[data-nm]',tr);
-      nm.className='nm'+(n===undefined?' bad':'');
-      nm.textContent=n===null?'':(n===undefined?'Kode tidak ada di master':n);
+      var n=chemName(r.code),nm=$('[data-f="nameSearch"]',tr);
+      if (nm && document.activeElement !== nm) {
+        nm.className='nm-in'+(n===undefined?' bad':'');
+        nm.value=n===null?'':(n===undefined?'Kode tidak ada di master':n);
+      }
       var g=lineG(r,b),am=$('[data-amt]',tr);
       am.innerHTML=g==null?'':esc(fmt(g))+' <small>g</small>';
     });
@@ -556,7 +577,29 @@ var root=$('#sheet');
 function onEdit(e){
   var t=e.target,c=state.cur;if(!c||!state.writable)return;
   if(t.dataset.k){c[t.dataset.k]=t.value;if(t.dataset.k==='pro')checkPro();if(t.dataset.k==='weight'||t.dataset.k==='ratio')recalc()}
-  else if(t.dataset.f){var r=c[t.dataset.t][+t.dataset.i];r[t.dataset.f]=t.value;recalc()}
+  else if(t.dataset.f){
+    var r=c[t.dataset.t][+t.dataset.i];
+    if (t.dataset.f === 'code') {
+      var resolved = resolveChemInput(t.value, t.dataset.t);
+      r.code = resolved;
+      if (resolved !== t.value) t.value = resolved;
+    } else if (t.dataset.f === 'nameSearch') {
+      var codeFromName = resolveChemInput(t.value, t.dataset.t);
+      var codeIn = t.closest('tr').querySelector('[data-f="code"]');
+      if (state.chems.has(codeFromName)) {
+        r.code = codeFromName;
+        if (codeIn) codeIn.value = codeFromName;
+        t.className = 'nm-in';
+      } else if (!String(t.value||'').trim()) {
+        r.code = '';
+        if (codeIn) codeIn.value = '';
+        t.className = 'nm-in';
+      }
+    } else {
+      r[t.dataset.f]=t.value;
+    }
+    recalc();
+  }
   else return;
   touch();
 }
@@ -768,7 +811,7 @@ function renderArchive(){
       :'<div class="empty"><strong>Arsip masih kosong</strong>Klik “Kartu baru”. Setiap kartu tersimpan otomatis dan bisa dicari lagi dengan nomor PRO.</div>';
     return;
   }
-  box.innerHTML='<div class="lh"><div>PRO</div><div>Tanggal</div><div>Mesin</div><div>Warna / Order</div><div style="text-align:right">Kg</div><div>Customer</div><div></div></div>'+
+  box.innerHTML='<div class="lh"><div>PRO</div><div>Code Fabric</div><div>Color Name</div><div>Tanggal</div><div>Mesin</div><div style="text-align:right">Kg</div><div>Customer</div><div></div></div>'+
   list.map(function(c){
     var ls=lines(c),chips='';
     if(toks.length){
@@ -783,8 +826,9 @@ function renderArchive(){
     }
     return '<div class="row" data-id="'+esc(c.id)+'">'+
       '<div class="pro"><a href="#kartu-'+esc(c.id)+'">'+esc(c.pro||'(tanpa PRO)')+'</a>'+(c.contoh?'<span class="badge">Contoh</span>':'')+'</div>'+
+      '<div class="mono">'+esc(c.codeFabric||'-')+'</div>'+
+      '<div><strong>'+esc(c.colorName||'-')+'</strong>'+(c.colorNo?' <small>'+esc(c.colorNo)+'</small>':'')+'<small>'+esc([c.orderNo,c.orderName].filter(Boolean).join(' · '))+'</small>'+chips+'</div>'+
       '<div>'+esc(fmtDate(c.date))+'</div><div>'+esc(c.machine||'')+'</div>'+
-      '<div><strong>'+esc(c.colorNo||'')+'</strong> '+esc(c.colorName||'')+'<small>'+esc([c.orderNo,c.orderName].filter(Boolean).join(' · '))+'</small>'+chips+'</div>'+
       '<div class="num">'+esc(fmt(parseFloat(c.weight)))+'</div><div>'+esc(c.customer||'')+'</div>'+
       '<div><button type="button" class="lnk" data-peek="'+esc(c.id)+'" aria-expanded="'+open+'">Resep '+(open?'▴':'▾')+'</button></div></div>'+peek;
   }).join('');
@@ -801,8 +845,12 @@ $('#list').addEventListener('click',function(e){
 function onChems(){
   var d=[],c=[];
   Array.from(state.chems.values()).sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(x){
-    var o='<option value="'+esc(x.code)+'" label="'+esc(x.name)+'">'+esc(x.name)+'</option>';(x.group==='chem'?c:d).push(o)});
-  $('#dl-dye').innerHTML=d.join('')+c.join('');$('#dl-chem').innerHTML=c.join('')+d.join('');
+    var o='<option value="'+esc(x.code)+'" label="'+esc(x.code)+' - '+esc(x.name)+'">'+esc(x.name)+'</option>';(x.group==='chem'?c:d).push(o)});
+  var dn=[],cn=[];
+  Array.from(state.chems.values()).sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(x){
+    var o='<option value="'+esc(x.name)+' ['+esc(x.code)+']"></option>';(x.group==='chem'?cn:dn).push(o)});
+  $('#dl-dye').innerHTML=d.join('');$('#dl-chem').innerHTML=c.join('');
+  $('#dl-dye-nm').innerHTML=dn.join('');$('#dl-chem-nm').innerHTML=cn.join('');
   $('#lblImport').hidden=!window.XLSX||!state.writable;$('#btnExportMaster').hidden=!window.XLSX||!state.chems.size;
   if(state.cur)recalc();
   if(state.view==='master')renderMaster();

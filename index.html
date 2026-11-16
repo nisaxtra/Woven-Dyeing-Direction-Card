@@ -62,7 +62,7 @@ h1{font-size:24px;letter-spacing:-.01em}
 .in:focus,.f input:focus,.f textarea:focus,.rt input:focus,.rt select:focus{border-color:var(--accent)}
 .meta{color:var(--muted);margin:0 0 8px;font-size:13px}
 .list{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
-.lh,.row{display:grid;grid-template-columns:minmax(115px,1fr) minmax(105px,1fr) minmax(0,1.8fr) 98px 80px 64px minmax(0,1fr) 78px;gap:10px;align-items:center;padding:10px 14px}
+.lh,.row{display:grid;grid-template-columns:minmax(115px,1fr) minmax(105px,1fr) minmax(0,1.8fr) 98px 80px 64px minmax(0,1fr) 114px;gap:10px;align-items:center;padding:10px 14px}
 .lh{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);border-bottom:1px solid var(--line);font-weight:500}
 .row{border-bottom:1px solid var(--line);cursor:pointer}
 .row:last-of-type{border-bottom:0}
@@ -188,7 +188,7 @@ h1{font-size:24px;letter-spacing:-.01em}
   <!-- ARSIP -->
   <section id="v-arsip" hidden>
     <div class="bar">
-      <input id="q" class="in grow" type="search" placeholder="Cari nomor PRO, Order No, warna, kode atau nama dyestuff / chemical…" autocomplete="off" aria-label="Cari kartu">
+      <input id="q" class="in grow" type="search" placeholder="Cari nomor PRO (mis. 310000), Code Fabric, warna, atau dyestuff / chemical…" autocomplete="off" aria-label="Cari kartu">
       <select id="fMachine" class="in" style="width:auto" aria-label="Filter mesin"><option value="">Semua mesin</option></select>
       <input id="fMonth" class="in" style="width:auto" type="month" aria-label="Filter bulan">
       <button id="btnNew" type="button" class="btn primary needs-write">Kartu baru</button>
@@ -830,10 +830,46 @@ function renderArchive(){
       '<div><strong>'+esc(c.colorName||'-')+'</strong>'+(c.colorNo?' <small>'+esc(c.colorNo)+'</small>':'')+'<small>'+esc([c.orderNo,c.orderName].filter(Boolean).join(' · '))+'</small>'+chips+'</div>'+
       '<div>'+esc(fmtDate(c.date))+'</div><div>'+esc(c.machine||'')+'</div>'+
       '<div class="num">'+esc(fmt(parseFloat(c.weight)))+'</div><div>'+esc(c.customer||'')+'</div>'+
-      '<div><button type="button" class="lnk" data-peek="'+esc(c.id)+'" aria-expanded="'+open+'">Resep '+(open?'▴':'▾')+'</button></div></div>'+peek;
+      '<div style="display:flex;gap:8px;justify-content:flex-end;align-items:center">'+
+        '<button type="button" class="lnk" data-peek="'+esc(c.id)+'" aria-expanded="'+open+'">Resep '+(open?'▴':'▾')+'</button>'+
+        '<button type="button" class="lnk" data-pdf="'+esc(c.id)+'" title="Cetak / Unduh PDF kartu ini">PDF</button>'+
+      '</div></div>'+peek;
   }).join('');
 }
+async function printCardById(id){
+  var card = state.cards.get(id);
+  if (!card) return;
+  var prevCur = state.cur, prevDirty = state.dirty;
+  state.cur = JSON.parse(JSON.stringify(card));
+  try {
+    if (window.jspdf && window.jspdf.jsPDF) {
+      var doc = buildPdf(DYE_ROWS, CHEM_ROWS);
+      if (doc.getNumberOfPages() > 1) doc = buildPdf(5, 6);
+      var name = 'PRO_' + String(state.cur.pro || 'kartu').replace(/[^A-Za-z0-9._-]+/g, '_') + '.pdf';
+      var d = window.claude ? await window.claude.use('downloads') : null;
+      if (d) {
+        await d.save({filename: name, data: doc.output('arraybuffer')});
+      } else {
+        doc.save(name);
+      }
+      toast('PDF PRO ' + (state.cur.pro || '') + ' siap dicetak.');
+    } else {
+      var h = printDoc(), w = null;
+      try { w = window.open('', '_blank'); } catch (e) { w = null; }
+      if (w) { w.document.open(); w.document.write(h); w.document.close(); }
+      else toast('Pembuat PDF tidak termuat. Muat ulang halaman.');
+    }
+  } catch (e) {
+    if (!e || e.code !== 'declined') toast('Gagal menyiapkan PDF');
+  } finally {
+    state.cur = prevCur;
+    state.dirty = prevDirty;
+  }
+}
+
 $('#list').addEventListener('click',function(e){
+  var pdfBtn=e.target.closest('[data-pdf]');
+  if(pdfBtn){printCardById(pdfBtn.dataset.pdf);return}
   var p=e.target.closest('[data-peek]');
   if(p){var id=p.dataset.peek;if(state.open.has(id))state.open.delete(id);else state.open.add(id);renderArchive();return}
   if(e.target.closest('a'))return;

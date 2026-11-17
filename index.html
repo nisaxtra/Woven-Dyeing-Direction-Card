@@ -177,11 +177,17 @@ h1{font-size:24px;letter-spacing:-.01em}
       <div class="eyebrow">PT Gistex · R&amp;D Processing</div>
       <h1>Dyeing Direction Card</h1>
     </div>
-    <nav class="tabs" aria-label="Menu">
-      <button type="button" data-tab="arsip">Arsip</button>
-      <button type="button" data-tab="kartu">Kartu</button>
-      <button type="button" data-tab="master">Master kode</button>
-    </nav>
+    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+      <div id="userBadge" hidden style="font-size:13px;color:var(--muted);background:var(--surface);border:1px solid var(--line);padding:5px 10px;border-radius:5px;display:inline-flex;align-items:center;gap:8px">
+        <span>User: <strong id="userNameLabel" style="color:var(--ink)"></strong></span>
+        <button type="button" class="lnk" id="btnSwitchUser" style="font-size:12px">Ganti</button>
+      </div>
+      <nav class="tabs" aria-label="Menu">
+        <button type="button" data-tab="arsip">Arsip</button>
+        <button type="button" data-tab="kartu">Kartu</button>
+        <button type="button" data-tab="master">Master kode</button>
+      </nav>
+    </div>
   </header>
   <div id="banners" class="no-print"></div>
 
@@ -230,8 +236,17 @@ h1{font-size:24px;letter-spacing:-.01em}
           <div class="f"><label for="f-fabricSpeed">Fabric Speed</label><input id="f-fabricSpeed" data-k="fabricSpeed"></div>
           <div class="f"><label for="f-reelTorque">Reel Torque</label><input id="f-reelTorque" data-k="reelTorque"></div>
           <div class="f"><label for="f-customer">Customer</label><input id="f-customer" data-k="customer" list="dl-customer"></div>
+          <div class="f"><label>Mode Air</label>
+            <div class="seg" role="group" aria-label="Mode Water Ratio" style="width:100%">
+              <button type="button" id="wm-ratio" data-wm="ratio" aria-pressed="true" style="flex:1;padding:4px 8px;font-size:12px">Auto (1:x × Kg)</button>
+              <button type="button" id="wm-liter" data-wm="liter" aria-pressed="false" style="flex:1;padding:4px 8px;font-size:12px">Manual (Isi Liter)</button>
+            </div>
+          </div>
           <div class="f"><label for="f-ratio">Water Ratio</label><div class="ratio"><span>1 :</span><input id="f-ratio" data-k="ratio" type="number" step="any" inputmode="decimal"></div></div>
-          <div class="f"><label>Amount</label><div class="ro-val" id="amount">–</div></div>
+          <div class="f"><label for="f-manualL">Amount</label>
+            <div class="ro-val" id="amount">–</div>
+            <div class="ratio" id="manualLWrap" hidden><input id="f-manualL" data-k="manualL" type="number" step="any" inputmode="decimal" placeholder="mis. 250"><span>L</span></div>
+          </div>
         </div>
       </div>
 
@@ -313,7 +328,7 @@ var lsSet=function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}
 
 var COL_A=[['machine','Machine','text','dl-machine'],['pro','Batch No. (PRO)','text'],['batchName','Batch Name','text'],['codeFabric','Code Fabric','text'],['right','Right','text'],['left','Left','text'],['weight','Weight (kg)','number'],['gy','g/y','number'],['pieces','Pieces','number'],['material','Material','text']];
 var COL_B=[['date','Date','date'],['orderNo','Order No.','text'],['orderName','Order Name','text'],['colorNo','Color No','text'],['colorName','Color Name','text'],['hue','Hue','text'],['nozzle','Nozzle','text'],['nozzlePrs','Nozzle Prs','text']];
-var TEXT_KEYS=['machine','pro','batchName','codeFabric','right','left','weight','gy','pieces','material','date','orderNo','orderName','colorNo','colorName','hue','nozzle','nozzlePrs','dyeingPattern','processPattern','mainPump','fabricSpeed','reelTorque','customer','ratio','recipeNo','recipeName','memo','maker'];
+var TEXT_KEYS=['machine','pro','batchName','codeFabric','right','left','weight','gy','pieces','material','date','orderNo','orderName','colorNo','colorName','hue','nozzle','nozzlePrs','dyeingPattern','processPattern','mainPump','fabricSpeed','reelTorque','customer','waterMode','ratio','manualL','recipeNo','recipeName','memo','maker'];
 
 var state={cards:new Map(),chems:new Map(),cur:null,dirty:false,writable:true,local:false,loaded:{cards:false,chems:false},open:new Set(),mg:'all',editCode:null,adding:false,imp:null,view:''};
 var DB=null, saveTimer=null, saving=false, again=false;
@@ -324,9 +339,57 @@ function getPin(forceAsk){
   var p = sessionStorage.getItem('ddc:pin');
   if (!p || forceAsk) {
     p = prompt('Masukkan PIN Akses (R&D / Produksi):');
-    if (p) sessionStorage.setItem('ddc:pin', p.trim());
+    if (p) {
+      p = p.trim();
+      sessionStorage.setItem('ddc:pin', p);
+      sessionStorage.removeItem('ddc:user');
+    }
   }
   return p || '';
+}
+
+function currentUser(){
+  return (sessionStorage.getItem('ddc:user') || lsGet('ddc:maker') || '').trim();
+}
+
+function ensureUserName(pin, serverUser, forceAsk){
+  if (serverUser) {
+    var su = String(serverUser).trim();
+    sessionStorage.setItem('ddc:user', su);
+    lsSet('ddc:maker', su);
+    updateUserBadge();
+    return su;
+  }
+  var u = sessionStorage.getItem('ddc:user');
+  if (!u || forceAsk) {
+    var byPin = lsGet('ddc:userByPin') || {};
+    var defName = u || byPin[pin] || lsGet('ddc:maker') || '';
+    var asked = prompt('Masukkan Nama Pembuat (untuk tanda tangan & PDF):', defName);
+    if (asked && asked.trim()) {
+      u = asked.trim();
+      sessionStorage.setItem('ddc:user', u);
+      byPin[pin] = u;
+      lsSet('ddc:userByPin', byPin);
+      lsSet('ddc:maker', u);
+    } else if (defName) {
+      u = defName;
+      sessionStorage.setItem('ddc:user', u);
+    }
+  }
+  updateUserBadge();
+  return u || '';
+}
+
+function updateUserBadge(){
+  var badge = $('#userBadge'), lbl = $('#userNameLabel');
+  if (!badge || !lbl) return;
+  var u = currentUser();
+  if (sessionStorage.getItem('ddc:pin')) {
+    badge.hidden = false;
+    lbl.textContent = u || '(Belum diisi)';
+  } else {
+    badge.hidden = true;
+  }
 }
 
 /* ---------- store: Google Sheets via Apps Script ---------- */
@@ -402,6 +465,7 @@ async function syncSheets(forcePin){
       state.cards = new Map((data.cards || []).map(function(c){ c.date = normDate(c.date); return [c.id, c]; }));
       state.chems = new Map((data.chems || []).map(function(c){ return [c.code, c]; }));
       state.writable = (data.role !== 'viewer');
+      ensureUserName(pin, data.user || data.userName || data.maker || '', false);
       persistLocal();
       banner('sync', '');
     } else {
@@ -488,7 +552,19 @@ $('#btnBack').onclick=function(){location.hash='arsip'};
 $('#btnNew').onclick=function(){startNew();location.hash='kartu';route()};
 
 /* ---------- calculation (same formulas as the spreadsheet) ---------- */
-function calcBase(){var w=parseFloat(state.cur.weight),r=parseFloat(state.cur.ratio);return {w:w,L:isFinite(w)&&isFinite(r)?w*r:NaN}}
+function calcBase(){
+  var c=state.cur,w=parseFloat(c.weight);
+  if(c.waterMode==='liter'){
+    var mL=parseFloat(c.manualL);
+    if(!isFinite(mL)){
+      var r0=parseFloat(c.ratio);
+      if(isFinite(w)&&isFinite(r0))mL=Math.round(w*r0*100)/100;
+    }
+    return {w:w,L:isFinite(mL)?mL:NaN};
+  }
+  var r=parseFloat(c.ratio);
+  return {w:w,L:isFinite(w)&&isFinite(r)?w*r:NaN};
+}
 function lineG(row,b){var x=parseFloat(row.ratio);if(!isFinite(x))return null;if(row.unit==='%')return isFinite(b.w)?x/100*b.w*1000:null;return isFinite(b.L)?x*b.L:null}
 function chemName(code){code=String(code||'').trim();if(!code)return null;var c=state.chems.get(code);return c?c.name:undefined}
 
@@ -505,7 +581,7 @@ function isBlank(r){return !(r.step||r.code||r.ratio||r.feed||r.action)}
 function newCard(){
   var c={id:newId(),created:false};
   TEXT_KEYS.forEach(function(k){c[k]=''});
-  c.date=today();c.ratio='30';c.maker=lsGet('ddc:maker')||'';c.machine=lsGet('ddc:machine')||'';
+  c.date=today();c.waterMode='ratio';c.ratio='30';c.manualL='';c.maker=currentUser();c.machine=lsGet('ddc:machine')||'';
   c.dyes=[];c.chems=[];return c;
 }
 function startNew(){clearTimeout(saveTimer);state.dirty=false;state.cur=newCard();padRows();fillForm();setStatus('new');updateSaveBtn()}
@@ -521,9 +597,39 @@ function padRows(){
     while(c[p[0]].length<p[1])c[p[0]].push(blankRow(p[0]));
   });
 }
+function syncWaterUI(){
+  var c=state.cur;if(!c)return;
+  var isLiter=c.waterMode==='liter';
+  var bR=$('#wm-ratio'),bL=$('#wm-liter'),inR=$('#f-ratio'),inL=$('#f-manualL'),roA=$('#amount'),wL=$('#manualLWrap');
+  if(bR)bR.setAttribute('aria-pressed',String(!isLiter));
+  if(bL)bL.setAttribute('aria-pressed',String(isLiter));
+  if(roA)roA.hidden=isLiter;
+  if(wL)wL.hidden=!isLiter;
+  if(inR){
+    inR.readOnly=isLiter;
+    inR.style.opacity=isLiter?'0.75':'1';
+  }
+  if(isLiter){
+    var w=parseFloat(c.weight),mL=parseFloat(c.manualL);
+    if(isFinite(w)&&w>0&&isFinite(mL)){
+      var calcR=String(Math.round((mL/w)*10000)/10000);
+      c.ratio=calcR;
+      if(inR)inR.value=calcR;
+    }else if(!isFinite(mL)){
+      c.ratio='';
+      if(inR)inR.value='';
+    }
+  }
+}
 function fillForm(){
   var c=state.cur;
+  if(!c.waterMode)c.waterMode='ratio';
+  if(c.waterMode==='liter'&&!c.manualL){
+    var w=parseFloat(c.weight),r=parseFloat(c.ratio);
+    if(isFinite(w)&&isFinite(r))c.manualL=String(Math.round(w*r*100)/100);
+  }
   $$('[data-k]').forEach(function(el){el.value=c[el.dataset.k]==null?'':c[el.dataset.k]});
+  syncWaterUI();
   renderRecipe('dyes');renderRecipe('chems');recalc();checkPro();applyRO();$('#remote').innerHTML='';
   $('#btnDel').hidden=!state.writable||!c.created;$('#btnDel').textContent='Hapus';$('#btnDel').classList.remove('sure');
 }
@@ -591,7 +697,7 @@ function checkPro(){
 var root=$('#sheet');
 function onEdit(e){
   var t=e.target,c=state.cur;if(!c||!state.writable)return;
-  if(t.dataset.k){c[t.dataset.k]=t.value;if(t.dataset.k==='pro')checkPro();if(t.dataset.k==='weight'||t.dataset.k==='ratio')recalc()}
+  if(t.dataset.k){c[t.dataset.k]=t.value;if(t.dataset.k==='pro')checkPro();if(t.dataset.k==='weight'||t.dataset.k==='ratio'||t.dataset.k==='manualL'){syncWaterUI();recalc()}}
   else if(t.dataset.f){
     var r=c[t.dataset.t][+t.dataset.i];
     if (t.dataset.f === 'code') {
@@ -620,6 +726,23 @@ function onEdit(e){
 }
 root.addEventListener('input',onEdit);root.addEventListener('change',onEdit);
 root.addEventListener('click',function(e){
+  var wm=e.target.closest('[data-wm]');
+  if(wm&&state.writable){
+    var mode=wm.dataset.wm;
+    if(state.cur.waterMode!==mode){
+      if(mode==='liter'){
+        var b=calcBase();
+        if(isFinite(b.L)){state.cur.manualL=String(Math.round(b.L*100)/100);$('#f-manualL').value=state.cur.manualL}
+      }
+      state.cur.waterMode=mode;
+      syncWaterUI();
+      recalc();
+      touch();
+      if(mode==='liter'&&$('#f-manualL'))$('#f-manualL').focus();
+      else if($('#f-ratio'))$('#f-ratio').focus();
+    }
+    return;
+  }
   var d=e.target.closest('[data-del]');
   if(d){var k=d.dataset.t,i=+d.dataset.i;state.cur[k].splice(i,1);if(!state.cur[k].length)state.cur[k].push(blankRow(k));renderRecipe(k);touch();return}
   var a=e.target.closest('[data-add]');
@@ -634,9 +757,23 @@ root.addEventListener('keydown',function(e){
 /* ---------- autosave ---------- */
 function touch(){
   var c=state.cur;state.dirty=true;
-  if(c.maker)lsSet('ddc:maker',c.maker);if(c.machine)lsSet('ddc:machine',c.machine);
+  if(c.maker){
+    lsSet('ddc:maker',c.maker);
+    sessionStorage.setItem('ddc:user',c.maker.trim());
+    var p=sessionStorage.getItem('ddc:pin');
+    if(p){var bp=lsGet('ddc:userByPin')||{};bp[p]=c.maker.trim();lsSet('ddc:userByPin',bp)}
+    updateUserBadge();
+  }
+  if(c.machine)lsSet('ddc:machine',c.machine);
   setStatus('pending');updateSaveBtn();
 }
+
+$('#btnSwitchUser').onclick=function(){
+  sessionStorage.removeItem('ddc:pin');
+  sessionStorage.removeItem('ddc:user');
+  updateUserBadge();
+  syncSheets(true);
+};
 function updateSaveBtn(){var b=$('#btnSave');if(b)b.disabled=saving||!state.dirty||!state.writable}
 function payload(){
   var c=JSON.parse(JSON.stringify(state.cur));delete c.created;
@@ -680,7 +817,7 @@ $('#btnDel').onclick=async function(){
 $('#btnDup').onclick=function(){
   if(state.dirty){toast('Simpan dulu kartu ini, lalu pakai ulang resepnya');return}
   var c=JSON.parse(JSON.stringify(state.cur));
-  c.id=newId();c.created=false;c.pro='';c.date=today();c.createdAt=0;c.contoh=false;delete c.updatedAt;
+  c.id=newId();c.created=false;c.pro='';c.date=today();c.maker=currentUser()||c.maker;c.createdAt=0;c.contoh=false;delete c.updatedAt;
   c.dyes=c.dyes.filter(function(r){return !isBlank(r)});c.chems=c.chems.filter(function(r){return !isBlank(r)});
   state.cur=null;state.cur=c;padRows();state.dirty=false;
   try{history.replaceState(null,'','#kartu')}catch(x){}fillForm();setStatus('new');updateSaveBtn();
@@ -967,7 +1104,7 @@ $('#btnExport').onclick=function(){
   var head=['PRO','Tanggal','Machine','Batch Name','Order No','Order Name','Code Fabric','Color No','Color Name','Hue','Right','Left','Weight (kg)','g/y','Pieces','Material','Nozzle','Nozzle Prs','Dyeing Pattern','Process Pattern','Main Pump','Fabric Speed','Reel Torque','Customer','Water Ratio (1:x)','Amount (L)','Recipe No','Recipe Name','Memo','Pembuat','Diperbarui'];
   var A=[head],B=[['PRO','Tanggal','Order No','Color No','Color Name','Kelompok','Step','Code','Chemical Name','Ratio','Unit','Amount (g)','Feed Spd','Action']];
   cards.forEach(function(c){
-    var w=parseFloat(c.weight),r=parseFloat(c.ratio),L=isFinite(w)&&isFinite(r)?w*r:'';
+    var w=parseFloat(c.weight),r=parseFloat(c.ratio),L=(c.waterMode==='liter'&&c.manualL!==''&&isFinite(parseFloat(c.manualL)))?parseFloat(c.manualL):(isFinite(w)&&isFinite(r)?Math.round(w*r*100)/100:'');
     A.push([c.pro,c.date,c.machine,c.batchName,c.orderNo,c.orderName,c.codeFabric,c.colorNo,c.colorName,c.hue,c.right,c.left,num(c.weight||''),num(c.gy||''),num(c.pieces||''),c.material,c.nozzle,c.nozzlePrs,c.dyeingPattern,c.processPattern,c.mainPump,c.fabricSpeed,c.reelTorque,c.customer,num(c.ratio||''),L,c.recipeNo,c.recipeName,c.memo,c.maker,c.updatedAt?new Date(c.updatedAt).toLocaleString('id-ID'):'']);
     var b={w:w,L:L===''?NaN:L};
     [['dyes','Dyestuff'],['chems','Chemical']].forEach(function(p){(c[p[0]]||[]).forEach(function(x){

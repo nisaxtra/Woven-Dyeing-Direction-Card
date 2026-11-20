@@ -156,7 +156,7 @@ h1{font-size:24px;letter-spacing:-.01em}
 .ac-item .ac-code{font-family:var(--mono);font-weight:600;color:var(--accent);white-space:nowrap}
 .ac-item .ac-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Mobile Fullscreen Picker (iOS Safari Scroll Safe) */
+/* Mobile Fullscreen Picker (Android & iOS Keyboard-Free Scroll Safe) */
 .mp-backdrop{
   position:fixed;top:0;left:0;right:0;bottom:0;height:100dvh;
   z-index:10000;background:var(--surface);
@@ -215,6 +215,7 @@ h1{font-size:24px;letter-spacing:-.01em}
   .g2{grid-template-columns:minmax(0,1fr)}
   .addrow{grid-template-columns:minmax(0,1fr)}
   .ac-menu{display:none!important}
+  input[data-picker="1"]{cursor:pointer;caret-color:transparent}
 }
 @media (max-width:520px){
   .f{grid-template-columns:minmax(0,1fr);gap:2px}.f .hint{grid-column:1}
@@ -305,7 +306,7 @@ h1{font-size:24px;letter-spacing:-.01em}
           <div class="f"><label for="f-mainPump">Main Pump</label><input id="f-mainPump" data-k="mainPump"></div>
           <div class="f"><label for="f-fabricSpeed">Fabric Speed</label><input id="f-fabricSpeed" data-k="fabricSpeed"></div>
           <div class="f"><label for="f-reelTorque">Reel Torque</label><input id="f-reelTorque" data-k="reelTorque"></div>
-          <div class="f"><label for="f-customer">Customer</label><input id="f-customer" data-k="customer" data-ac="customer" autocomplete="off"></div>
+          <div class="f"><label for="f-customer">Customer</label><input id="f-customer" data-k="customer" data-ac="customer" data-picker="1" autocomplete="off"></div>
           <div class="f"><label>Mode Air</label>
             <div class="seg" role="group" aria-label="Mode Water Ratio" style="width:100%">
               <button type="button" id="wm-ratio" data-wm="ratio" aria-pressed="true" style="flex:1;padding:4px 8px;font-size:12px">Auto (1:x × Kg)</button>
@@ -338,7 +339,7 @@ h1{font-size:24px;letter-spacing:-.01em}
       <div class="f top" style="grid-template-columns:minmax(0,1fr)"><textarea id="f-memo" data-k="memo" rows="3" aria-label="Memo"></textarea></div>
 
       <div class="sign">
-        <label style="display:flex;gap:8px;align-items:center">Pembuat <input id="f-maker" data-k="maker" data-ac="maker" autocomplete="off" style="width:220px"></label>
+        <label style="display:flex;gap:8px;align-items:center">Pembuat <input id="f-maker" data-k="maker" data-ac="maker" data-picker="1" autocomplete="off" style="width:220px"></label>
         <span class="print-only" id="printDate"></span>
       </div>
     </div>
@@ -366,7 +367,7 @@ h1{font-size:24px;letter-spacing:-.01em}
 <!-- Desktop dropdown -->
 <div id="acMenu" class="ac-menu" hidden></div>
 
-<!-- Mobile Fullscreen Picker (Scroll-safe on iPhone Safari) -->
+<!-- Mobile Fullscreen Picker (Scroll-safe on Android & iPhone) -->
 <div id="mpModal" class="mp-backdrop" hidden>
   <div class="mp-head">
     <input id="mpSearch" type="search" placeholder="Ketik kode atau nama..." autocomplete="off">
@@ -478,12 +479,27 @@ function updateUserBadge(){
   }
 }
 
-/* ---------- Mobile Fullscreen Picker (iOS Safari Scroll Safe) ---------- */
+/* Kunci/buka readonly pada input picker di HP agar keyboard Android & iOS tidak pernah muncul saat mengetuk kolom */
+function syncMobilePickerMode(){
+  var mob = isMobile();
+  $$('input[data-picker="1"]').forEach(function(el){
+    if (mob) {
+      el.setAttribute('readonly', 'readonly');
+      el.setAttribute('inputmode', 'none');
+    } else {
+      el.removeAttribute('readonly');
+      el.removeAttribute('inputmode');
+    }
+  });
+}
+
+/* ---------- Mobile Fullscreen Picker (Android & iOS Keyboard-Free) ---------- */
 var mpModal = $('#mpModal'), mpSearch = $('#mpSearch'), mpTabs = $('#mpTabs'), mpList = $('#mpList');
 var mpTarget = null, mpGroup = 'dye', mpItems = [], savedScrollY = 0;
 
 function openMobilePicker(el){
-  if (!state.writable || el.disabled || el.readOnly) return;
+  if (!state.writable || el.disabled) return;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
   mpTarget = el;
   var isChem = (el.dataset.f === 'code' || el.dataset.f === 'nameSearch');
   mpTabs.hidden = !isChem;
@@ -505,7 +521,6 @@ function openMobilePicker(el){
   renderMobilePicker();
   mpModal.hidden = false;
   mpList.scrollTop = 0;
-  // Sengaja TIDAK memanggil mpSearch.focus() otomatis di HP agar daftar langsung 1 layar penuh & lancar di-scroll jempol
 }
 
 function closeMobilePicker(){
@@ -582,7 +597,6 @@ mpTabs.addEventListener('click', function(e){
 });
 $('#mpClose').onclick = closeMobilePicker;
 
-// Bedakan tap vs scroll jempol di daftar mobile
 var mpTouchY = 0, mpMoved = false;
 mpList.addEventListener('touchstart', function(e){
   if (e.touches && e.touches[0]) {
@@ -740,13 +754,39 @@ acMenu.addEventListener('pointerdown', function(e){
   applyAcSelection(+item.dataset.acidx);
 });
 
+/* Tangkap tap di HP SEBELUM focus terjadi supaya keyboard Android tidak sempat muncul */
+var tblTouchStartX = 0, tblTouchStartY = 0, tblTouchMoved = false;
+document.addEventListener('touchstart', function(e){
+  var t = e.target && e.target.closest ? e.target.closest('input[data-picker="1"]') : null;
+  if (!t || !isMobile()) return;
+  if (e.touches && e.touches[0]) {
+    tblTouchStartX = e.touches[0].clientX;
+    tblTouchStartY = e.touches[0].clientY;
+    tblTouchMoved = false;
+  }
+}, {passive: true});
+document.addEventListener('touchmove', function(e){
+  if (e.touches && e.touches[0]) {
+    if (Math.abs(e.touches[0].clientX - tblTouchStartX) > 10 || Math.abs(e.touches[0].clientY - tblTouchStartY) > 10) {
+      tblTouchMoved = true;
+    }
+  }
+}, {passive: true});
+document.addEventListener('click', function(e){
+  var t = e.target && e.target.closest ? e.target.closest('input[data-picker="1"]') : null;
+  if (!t || !isMobile()) return;
+  if (tblTouchMoved) return;
+  e.preventDefault();
+  e.stopPropagation();
+  openMobilePicker(t);
+}, true);
+
 document.addEventListener('focusin', function(e){
   var t = e.target;
   if (!t) return;
-  if (t.dataset.f === 'code' || t.dataset.f === 'nameSearch' || t.dataset.ac) {
+  if (t.dataset.picker === '1') {
     if (isMobile()) {
       t.blur();
-      openMobilePicker(t);
     } else {
       showAc(t);
     }
@@ -762,7 +802,10 @@ document.addEventListener('focusout', function(e){
 window.addEventListener('scroll', function(e){
   if (acTarget && e.target !== acMenu) positionAc(acTarget);
 }, true);
-window.addEventListener('resize', function(){ if (acTarget) positionAc(acTarget); });
+window.addEventListener('resize', function(){
+  syncMobilePickerMode();
+  if (acTarget) positionAc(acTarget);
+});
 
 /* ---------- store: Google Sheets via Apps Script ---------- */
 function persistLocal(){lsSet('ddc:cards',Array.from(state.cards.values()));lsSet('ddc:chems',Array.from(state.chems.values()))}
@@ -867,12 +910,14 @@ async function init(){
     (lsGet('ddc:cards')||[]).forEach(function(c){state.cards.set(c.id,c)});
     (lsGet('ddc:chems')||[]).forEach(function(c){state.chems.set(c.code,c)});
   }
+  syncMobilePickerMode();
   await syncSheets(false);
 }
 function applyRO(){
   document.body.classList.toggle('ro',!state.writable);
   $$('.needs-write').forEach(function(b){b.hidden=!state.writable});
   $$('#sheet input,#sheet textarea,#sheet select,#sheet .x').forEach(function(i){i.disabled=!state.writable});
+  syncMobilePickerMode();
   banner('ro',state.writable?'':'Mode Lihat Saja (Viewer). Kamu hanya bisa melihat arsip dan mencetak PDF.');
 }
 
@@ -943,7 +988,7 @@ function chemName(code){code=String(code||'').trim();if(!code)return null;var c=
 /* ---------- card editor ---------- */
 function fieldHtml(f){
   var k=f[0],t=f[2],ac=f[3];
-  return '<div class="f"><label for="f-'+k+'">'+f[1]+'</label><input id="f-'+k+'" data-k="'+k+'" type="'+t+'"'+(t==='number'?' step="any" inputmode="decimal"':'')+(ac?' data-ac="'+ac+'" autocomplete="off"':'')+(k==='pro'?' autocomplete="off"':'')+'>'+(k==='pro'?'<div class="hint warn" id="proWarn" hidden></div>':'')+'</div>';
+  return '<div class="f"><label for="f-'+k+'">'+f[1]+'</label><input id="f-'+k+'" data-k="'+k+'" type="'+t+'"'+(t==='number'?' step="any" inputmode="decimal"':'')+(ac?' data-ac="'+ac+'" data-picker="1" autocomplete="off"':'')+(k==='pro'?' autocomplete="off"':'')+'>'+(k==='pro'?'<div class="hint warn" id="proWarn" hidden></div>':'')+'</div>';
 }
 $('#colA').innerHTML=COL_A.map(fieldHtml).join('');
 $('#colB').innerHTML=COL_B.map(fieldHtml).join('');
@@ -1010,8 +1055,8 @@ function rowHtml(kind,i,r){
   var a='data-t="'+kind+'" data-i="'+i+'"';
   return '<tr '+a+'>'+
   '<td class="c-step"><input '+a+' data-f="step" value="'+esc(r.step)+'" aria-label="Step"></td>'+
-  '<td class="c-code"><input class="mono" '+a+' data-f="code" autocomplete="off" value="'+esc(r.code)+'" aria-label="Code" placeholder="Pilih..."></td>'+
-  '<td class="c-name-col"><input class="nm-in" '+a+' data-f="nameSearch" autocomplete="off" placeholder="Ketuk pilih..." aria-label="Chemical Name"></td>'+
+  '<td class="c-code"><input class="mono" '+a+' data-f="code" data-picker="1" autocomplete="off" value="'+esc(r.code)+'" aria-label="Code" placeholder="Pilih..."></td>'+
+  '<td class="c-name-col"><input class="nm-in" '+a+' data-f="nameSearch" data-picker="1" autocomplete="off" placeholder="Ketuk pilih..." aria-label="Chemical Name"></td>'+
   '<td class="c-ratio"><input '+a+' data-f="ratio" type="number" step="any" inputmode="decimal" value="'+esc(r.ratio)+'" aria-label="Ratio"></td>'+
   '<td class="c-unit"><select '+a+' data-f="unit" aria-label="Unit"><option value="%"'+(r.unit==='%'?' selected':'')+'>%</option><option value="g/L"'+(r.unit==='g/L'?' selected':'')+'>g/L</option></select></td>'+
   '<td class="c-amt amt" data-amt></td>'+
@@ -1022,6 +1067,7 @@ function rowHtml(kind,i,r){
 function renderRecipe(kind){
   $('#t-'+kind).innerHTML=HEAD+'<tbody>'+state.cur[kind].map(function(r,i){return rowHtml(kind,i,r)}).join('')+'</tbody>';
   recalc();
+  syncMobilePickerMode();
   if(!state.writable)$$('#t-'+kind+' input,#t-'+kind+' select,#t-'+kind+' .x').forEach(function(i){i.disabled=true});
 }
 function resolveChemInput(val, kind){
@@ -1124,7 +1170,7 @@ root.addEventListener('click',function(e){
   var d=e.target.closest('[data-del]');
   if(d){hideAc();var k=d.dataset.t,i=+d.dataset.i;state.cur[k].splice(i,1);if(!state.cur[k].length)state.cur[k].push(blankRow(k));renderRecipe(k);touch();return}
   var a=e.target.closest('[data-add]');
-  if(a){var kk=a.dataset.add;state.cur[kk].push(blankRow(kk));renderRecipe(kk);var rows=$$('#t-'+kk+' tbody tr');var f=$('[data-f="code"]',rows[rows.length-1]);if(f)f.focus()}
+  if(a){var kk=a.dataset.add;state.cur[kk].push(blankRow(kk));renderRecipe(kk);var rows=$$('#t-'+kk+' tbody tr');var f=$('[data-f="code"]',rows[rows.length-1]);if(f&&!isMobile())f.focus()}
 });
 root.addEventListener('keydown',function(e){
   if(!acMenu.hidden && acTarget){

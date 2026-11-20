@@ -27,6 +27,7 @@
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans);
   padding-block:16px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+body.mp-open{overflow:hidden;position:fixed;width:100%;left:0;right:0}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
 .wrap{max-width:1180px;margin:0 auto}
 h1,h2,h3{margin:0;font-weight:600;text-wrap:balance}
@@ -143,8 +144,8 @@ h1{font-size:24px;letter-spacing:-.01em}
 /* Desktop Floating Autocomplete */
 .ac-menu{
   position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--accent);
-  border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);max-height:240px;overflow-y:auto;
-  -webkit-overflow-scrolling:touch;min-width:240px
+  border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);max-height:260px;overflow-y:auto;
+  overscroll-behavior:contain;min-width:260px
 }
 .ac-item{
   padding:10px 12px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;
@@ -155,19 +156,17 @@ h1{font-size:24px;letter-spacing:-.01em}
 .ac-item .ac-code{font-family:var(--mono);font-weight:600;color:var(--accent);white-space:nowrap}
 .ac-item .ac-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* Mobile Fullscreen Picker Modal (Phone Friendly) */
+/* Mobile Fullscreen Picker (iOS Safari Scroll Safe) */
 .mp-backdrop{
-  position:fixed;inset:0;z-index:10000;background:rgba(15,20,32,.6);
-  display:flex;flex-direction:column;justify-content:flex-start;
-  padding-top:env(safe-area-inset-top,0px)
-}
-.mp-sheet{
-  background:var(--surface);width:100%;height:100%;display:flex;flex-direction:column;
-  overflow:hidden
+  position:fixed;top:0;left:0;right:0;bottom:0;height:100dvh;
+  z-index:10000;background:var(--surface);
+  display:flex;flex-direction:column;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px)
 }
 .mp-head{
   display:flex;align-items:center;gap:8px;padding:10px 12px;
-  border-bottom:1px solid var(--line);background:var(--surface);flex:none
+  border-bottom:1px solid var(--line);background:var(--surface);flex:0 0 auto
 }
 .mp-head input{
   flex:1;min-width:0;background:var(--field);border:1px solid var(--accent);
@@ -175,30 +174,31 @@ h1{font-size:24px;letter-spacing:-.01em}
 }
 .mp-close{
   border:1px solid var(--line);background:var(--field);border-radius:6px;
-  padding:9px 12px;font-weight:600;cursor:pointer;white-space:nowrap
+  padding:10px 14px;font-weight:600;cursor:pointer;white-space:nowrap
 }
 .mp-tabs{
   display:flex;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line);
-  background:var(--field);flex:none
+  background:var(--field);flex:0 0 auto
 }
 .mp-tabs button{
-  flex:1;padding:7px 10px;border-radius:5px;border:1px solid var(--line);
-  background:var(--surface);font-weight:500;font-size:13px;cursor:pointer
+  flex:1;padding:8px 10px;border-radius:5px;border:1px solid var(--line);
+  background:var(--surface);font-weight:500;font-size:14px;cursor:pointer
 }
 .mp-tabs button[aria-pressed="true"]{
   background:var(--accent);color:var(--accent-ink);border-color:var(--accent)
 }
 .mp-list{
-  flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:40px
+  flex:1 1 auto;min-height:0;overflow-y:scroll;-webkit-overflow-scrolling:touch;
+  overscroll-behavior-y:contain;touch-action:pan-y;padding-bottom:80px
 }
 .mp-item{
-  padding:13px 16px;border-bottom:1px solid var(--line);display:flex;
+  padding:14px 16px;border-bottom:1px solid var(--line);display:flex;
   align-items:center;justify-content:space-between;gap:12px;cursor:pointer;
-  active-background:var(--accent-soft)
+  user-select:none;-webkit-user-select:none
 }
 .mp-item:active{background:var(--accent-soft)}
 .mp-item .mp-left{min-width:0;flex:1}
-.mp-item .mp-nm{font-weight:500;font-size:15px;color:var(--ink);line-height:1.3}
+.mp-item .mp-nm{font-weight:500;font-size:15px;color:var(--ink);line-height:1.35}
 .mp-item .mp-cd{font-family:var(--mono);font-size:13px;color:var(--accent);font-weight:600;margin-top:2px}
 .mp-item .mp-tag{
   font-size:11px;padding:3px 7px;border-radius:4px;background:var(--accent-soft);
@@ -220,7 +220,6 @@ h1{font-size:24px;letter-spacing:-.01em}
   .f{grid-template-columns:minmax(0,1fr);gap:2px}.f .hint{grid-column:1}
   .sheet{padding:14px}
   input,select,textarea{font-size:16px!important}
-  /* Perbesar touch target sel tabel di HP */
   .rt input,.rt select{padding:9px 6px}
   .c-code{width:110px}
   .c-name-col{min-width:190px}
@@ -367,20 +366,18 @@ h1{font-size:24px;letter-spacing:-.01em}
 <!-- Desktop dropdown -->
 <div id="acMenu" class="ac-menu" hidden></div>
 
-<!-- Mobile Fullscreen Picker -->
+<!-- Mobile Fullscreen Picker (Scroll-safe on iPhone Safari) -->
 <div id="mpModal" class="mp-backdrop" hidden>
-  <div class="mp-sheet">
-    <div class="mp-head">
-      <input id="mpSearch" type="search" placeholder="Ketik kode atau nama..." autocomplete="off">
-      <button type="button" class="mp-close" id="mpClose">Tutup</button>
-    </div>
-    <div class="mp-tabs" id="mpTabs" hidden>
-      <button type="button" data-mpg="dye" aria-pressed="true">Dyestuff</button>
-      <button type="button" data-mpg="chem" aria-pressed="false">Chemical</button>
-      <button type="button" data-mpg="all" aria-pressed="false">Semua</button>
-    </div>
-    <div class="mp-list" id="mpList"></div>
+  <div class="mp-head">
+    <input id="mpSearch" type="search" placeholder="Ketik kode atau nama..." autocomplete="off">
+    <button type="button" class="mp-close" id="mpClose">Tutup</button>
   </div>
+  <div class="mp-tabs" id="mpTabs" hidden>
+    <button type="button" data-mpg="dye" aria-pressed="true">Dyestuff</button>
+    <button type="button" data-mpg="chem" aria-pressed="false">Chemical</button>
+    <button type="button" data-mpg="all" aria-pressed="false">Semua</button>
+  </div>
+  <div class="mp-list" id="mpList"></div>
 </div>
 
 <div id="toast" class="toast" role="status" hidden></div>
@@ -389,8 +386,7 @@ h1{font-size:24px;letter-spacing:-.01em}
 (function(){
 'use strict';
 var DYE_ROWS=11, CHEM_ROWS=15;
-var $=function(s,r){return (r||document).querySelector(s)};
-var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var $=function(s,r){return (r\vert{}\vert{}document).querySelector(s)}; var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
 var fmt=function(n,d){return n==null||!isFinite(n)?'':n.toLocaleString('id-ID',{maximumFractionDigits:d==null?2:d})};
 var today=function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
@@ -416,335 +412,4 @@ var lsSet=function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}
 var isMobile=function(){return window.innerWidth<=820};
 
 var COL_A=[['machine','Machine','text','machine'],['pro','Batch No. (PRO)','text'],['batchName','Batch Name','text'],['codeFabric','Code Fabric','text'],['right','Right','text'],['left','Left','text'],['weight','Weight (kg)','number'],['gy','g/y','number'],['pieces','Pieces','number'],['material','Material','text']];
-var COL_B=[['date','Date','date'],['orderNo','Order No.','text'],['orderName','Order Name','text'],['colorNo','Color No','text'],['colorName','Color Name','text'],['hue','Hue','text'],['nozzle','Nozzle','text'],['nozzlePrs','Nozzle Prs','text']];
-var TEXT_KEYS=['machine','pro','batchName','codeFabric','right','left','weight','gy','pieces','material','date','orderNo','orderName','colorNo','colorName','hue','nozzle','nozzlePrs','dyeingPattern','processPattern','mainPump','fabricSpeed','reelTorque','customer','waterMode','ratio','manualL','recipeNo','recipeName','memo','maker'];
-
-var state={cards:new Map(),chems:new Map(),cur:null,dirty:false,writable:true,local:false,loaded:{cards:false,chems:false},open:new Set(),mg:'all',editCode:null,adding:false,imp:null,view:'',lists:{machine:[],customer:[],maker:[]}};
-var DB=null, saveTimer=null, saving=false, again=false;
-
-var GAS_URL = 'https://script.google.com/macros/s/AKfycbxJeiaDyTLnvWJf0J_DmEaz9t54t-Nw0fqqr41oKT2RG0a5omXDZc550d8EqQSA9ZJY/exec';
-
-function getPin(forceAsk){
-  var p = sessionStorage.getItem('ddc:pin');
-  if (!p || forceAsk) {
-    p = prompt('Masukkan PIN Akses (R&D / Produksi):');
-    if (p) {
-      p = p.trim();
-      sessionStorage.setItem('ddc:pin', p);
-      sessionStorage.removeItem('ddc:user');
-    }
-  }
-  return p || '';
-}
-
-function currentUser(){
-  return (sessionStorage.getItem('ddc:user') || lsGet('ddc:maker') || '').trim();
-}
-
-function ensureUserName(pin, serverUser, forceAsk){
-  if (serverUser) {
-    var su = String(serverUser).trim();
-    sessionStorage.setItem('ddc:user', su);
-    lsSet('ddc:maker', su);
-    updateUserBadge();
-    return su;
-  }
-  var u = sessionStorage.getItem('ddc:user');
-  if (!u || forceAsk) {
-    var byPin = lsGet('ddc:userByPin') || {};
-    var defName = u || byPin[pin] || lsGet('ddc:maker') || '';
-    var asked = prompt('Masukkan Nama Pembuat (untuk tanda tangan & PDF):', defName);
-    if (asked && asked.trim()) {
-      u = asked.trim();
-      sessionStorage.setItem('ddc:user', u);
-      byPin[pin] = u;
-      lsSet('ddc:userByPin', byPin);
-      lsSet('ddc:maker', u);
-    } else if (defName) {
-      u = defName;
-      sessionStorage.setItem('ddc:user', u);
-    }
-  }
-  updateUserBadge();
-  return u || '';
-}
-
-function updateUserBadge(){
-  var badge = $('#userBadge'), lbl = $('#userNameLabel');
-  if (!badge || !lbl) return;
-  var u = currentUser();
-  if (sessionStorage.getItem('ddc:pin')) {
-    badge.hidden = false;
-    lbl.textContent = u || '(Belum diisi)';
-  } else {
-    badge.hidden = true;
-  }
-}
-
-/* ---------- Mobile Fullscreen Picker (Phone Friendly) ---------- */
-var mpModal = $('#mpModal'), mpSearch = $('#mpSearch'), mpTabs = $('#mpTabs'), mpList = $('#mpList');
-var mpTarget = null, mpGroup = 'dye', mpItems = [];
-
-function openMobilePicker(el){
-  if (!state.writable || el.disabled || el.readOnly) return;
-  mpTarget = el;
-  var isChem = (el.dataset.f === 'code' || el.dataset.f === 'nameSearch');
-  mpTabs.hidden = !isChem;
-  if (isChem) {
-    mpGroup = (el.dataset.t === 'dyes') ? 'dye' : 'chem';
-    $$('[data-mpg]', mpTabs).forEach(function(b){
-      b.setAttribute('aria-pressed', String(b.dataset.mpg === mpGroup));
-    });
-    mpSearch.placeholder = 'Cari kode atau nama ' + (mpGroup === 'dye' ? 'dyestuff' : 'chemical') + '...';
-    mpSearch.value = '';
-  } else {
-    var labelMap = {machine:'Mesin', customer:'Customer', maker:'Nama Pembuat'};
-    mpSearch.placeholder = 'Cari atau ketik ' + (labelMap[el.dataset.ac] || '') + '...';
-    mpSearch.value = el.value || '';
-  }
-  renderMobilePicker();
-  mpModal.hidden = false;
-  setTimeout(function(){ mpSearch.focus(); }, 60);
-}
-
-function closeMobilePicker(){
-  mpModal.hidden = true;
-  mpTarget = null;
-  mpItems = [];
-}
-
-function renderMobilePicker(){
-  if (!mpTarget) return;
-  var q = mpSearch.value.trim().toLowerCase();
-  var isChem = (mpTarget.dataset.f === 'code' || mpTarget.dataset.f === 'nameSearch');
-  if (isChem) {
-    var all = Array.from(state.chems.values()).sort(function(a,b){
-      return a.name.localeCompare(b.name);
-    });
-    mpItems = all.filter(function(item){
-      if (mpGroup !== 'all' && item.group !== mpGroup) return false;
-      if (!q) return true;
-      return item.code.toLowerCase().indexOf(q) > -1 || item.name.toLowerCase().indexOf(q) > -1;
-    });
-    if (!mpItems.length) {
-      mpList.innerHTML = '<div class="mp-empty">Tidak ada kode yang cocok.<br><small>Coba ganti kata kunci atau pilih tab "Semua".</small></div>';
-      return;
-    }
-    mpList.innerHTML = mpItems.map(function(it, idx){
-      return '<div class="mp-item" data-mpidx="'+idx+'">'+
-        '<div class="mp-left">'+
-          '<div class="mp-nm">'+esc(it.name)+'</div>'+
-          '<div class="mp-cd">'+esc(it.code)+'</div>'+
-        '</div>'+
-        '<span class="mp-tag">'+(it.group === 'chem' ? 'Chemical' : 'Dyestuff')+'</span>'+
-      '</div>';
-    }).join('');
-  } else {
-    var acKey = mpTarget.dataset.ac;
-    var rawList = (state.lists[acKey] || []).filter(function(v){
-      return !q || v.toLowerCase().indexOf(q) > -1;
-    });
-    mpItems = rawList.map(function(v){ return { text: v }; });
-    var typed = mpSearch.value.trim();
-    var extraHtml = '';
-    if (typed && !rawList.some(function(v){ return v.toLowerCase() === typed.toLowerCase(); })) {
-      mpItems.unshift({ text: typed, custom: true });
-    }
-    if (!mpItems.length) {
-      mpList.innerHTML = '<div class="mp-empty">Ketik teks baru di atas lalu pilih.</div>';
-      return;
-    }
-    mpList.innerHTML = mpItems.map(function(it, idx){
-      return '<div class="mp-item" data-mpidx="'+idx+'">'+
-        '<div class="mp-left"><div class="mp-nm">'+(it.custom ? 'Pakai: "'+esc(it.text)+'"' : esc(it.text))+'</div></div>'+
-      '</div>';
-    }).join('');
-  }
-}
-
-mpSearch.addEventListener('input', renderMobilePicker);
-mpTabs.addEventListener('click', function(e){
-  var b = e.target.closest('[data-mpg]');
-  if (!b) return;
-  mpGroup = b.dataset.mpg;
-  $$('[data-mpg]', mpTabs).forEach(function(x){ x.setAttribute('aria-pressed', String(x === b)); });
-  renderMobilePicker();
-});
-$('#mpClose').onclick = closeMobilePicker;
-mpList.addEventListener('click', function(e){
-  var row = e.target.closest('[data-mpidx]');
-  if (!row || !mpTarget) return;
-  var it = mpItems[+row.dataset.mpidx];
-  if (!it) return;
-  var el = mpTarget;
-  if (it.code) {
-    var r = state.cur[el.dataset.t][+el.dataset.i];
-    var tr = el.closest('tr');
-    r.code = it.code;
-    var codeIn = tr.querySelector('[data-f="code"]');
-    var nmIn = tr.querySelector('[data-f="nameSearch"]');
-    if (codeIn) codeIn.value = it.code;
-    if (nmIn) { nmIn.value = it.name; nmIn.className = 'nm-in'; }
-    recalc();
-    touch();
-    closeMobilePicker();
-    var ratioIn = tr.querySelector('[data-f="ratio"]');
-    if (ratioIn) setTimeout(function(){ ratioIn.focus(); }, 80);
-  } else {
-    el.value = it.text;
-    if (el.dataset.k) {
-      state.cur[el.dataset.k] = it.text;
-      touch();
-    }
-    closeMobilePicker();
-  }
-});
-
-/* ---------- Desktop Floating Autocomplete ---------- */
-var acTarget = null, acItems = [], acIndex = -1;
-var acMenu = $('#acMenu');
-
-function hideAc(){
-  acMenu.hidden = true;
-  acTarget = null;
-  acItems = [];
-  acIndex = -1;
-}
-
-function positionAc(el){
-  if (!el || acMenu.hidden) return;
-  var r = el.getBoundingClientRect();
-  var vw = window.innerWidth, vh = window.innerHeight;
-  var w = Math.max(r.width, 280);
-  if (w > vw - 16) w = vw - 16;
-  var left = r.left;
-  if (left + w > vw - 8) left = Math.max(8, vw - w - 8);
-  acMenu.style.width = w + 'px';
-  acMenu.style.left = left + 'px';
-  var spaceBelow = vh - r.bottom - 10;
-  var spaceAbove = r.top - 10;
-  if (spaceBelow < 160 && spaceAbove > spaceBelow) {
-    acMenu.style.top = 'auto';
-    acMenu.style.bottom = (vh - r.top + 4) + 'px';
-    acMenu.style.maxHeight = Math.min(240, spaceAbove) + 'px';
-  } else {
-    acMenu.style.bottom = 'auto';
-    acMenu.style.top = (r.bottom + 4) + 'px';
-    acMenu.style.maxHeight = Math.min(240, Math.max(120, spaceBelow)) + 'px';
-  }
-}
-
-function getAcCandidates(el){
-  var q = String(el.value || '').trim().toLowerCase();
-  if (el.dataset.f === 'code' || el.dataset.f === 'nameSearch') {
-    var prefGroup = el.dataset.t === 'dyes' ? 'dye' : 'chem';
-    var all = Array.from(state.chems.values()).sort(function(a,b){
-      var ga = a.group === prefGroup ? 0 : 1;
-      var gb = b.group === prefGroup ? 0 : 1;
-      return ga - gb || a.name.localeCompare(b.name);
-    });
-    return all.filter(function(item){
-      if (!q) return item.group === prefGroup;
-      return item.code.toLowerCase().indexOf(q) > -1 || item.name.toLowerCase().indexOf(q) > -1;
-    }).slice(0, 40).map(function(item){
-      return { code: item.code, name: item.name, group: item.group };
-    });
-  }
-  var acKey = el.dataset.ac;
-  if (acKey && state.lists[acKey]) {
-    return state.lists[acKey].filter(function(v){
-      return !q || v.toLowerCase().indexOf(q) > -1;
-    }).slice(0, 30).map(function(v){
-      return { text: v };
-    });
-  }
-  return [];
-}
-
-function showAc(el){
-  if (isMobile()) return;
-  if (!state.writable || el.disabled || el.readOnly) return;
-  var items = getAcCandidates(el);
-  if (!items.length) { hideAc(); return; }
-  acTarget = el;
-  acItems = items;
-  acIndex = -1;
-  acMenu.innerHTML = items.map(function(it, idx){
-    if (it.code) {
-      return '<div class="ac-item" data-acidx="'+idx+'">'+
-        '<span class="ac-code">'+esc(it.code)+'</span>'+
-        '<span class="ac-name">'+esc(it.name)+'</span>'+
-      '</div>';
-    }
-    return '<div class="ac-item" data-acidx="'+idx+'"><span class="ac-name">'+esc(it.text)+'</span></div>';
-  }).join('');
-  acMenu.hidden = false;
-  positionAc(el);
-}
-
-function applyAcSelection(idx){
-  var el = acTarget, it = acItems[idx];
-  if (!el || !it) return;
-  if (it.code) {
-    var r = state.cur[el.dataset.t][+el.dataset.i];
-    var tr = el.closest('tr');
-    r.code = it.code;
-    var codeIn = tr.querySelector('[data-f="code"]');
-    var nmIn = tr.querySelector('[data-f="nameSearch"]');
-    if (codeIn) codeIn.value = it.code;
-    if (nmIn) { nmIn.value = it.name; nmIn.className = 'nm-in'; }
-    recalc();
-    touch();
-    var ratioIn = tr.querySelector('[data-f="ratio"]');
-    if (ratioIn) ratioIn.focus();
-  } else {
-    el.value = it.text;
-    if (el.dataset.k) {
-      state.cur[el.dataset.k] = it.text;
-      touch();
-    }
-  }
-  hideAc();
-}
-
-acMenu.addEventListener('pointerdown', function(e){
-  var item = e.target.closest('[data-acidx]');
-  if (!item) return;
-  e.preventDefault();
-  applyAcSelection(+item.dataset.acidx);
-});
-
-document.addEventListener('focusin', function(e){
-  var t = e.target;
-  if (!t) return;
-  if (t.dataset.f === 'code' || t.dataset.f === 'nameSearch' || t.dataset.ac) {
-    if (isMobile()) {
-      t.blur();
-      openMobilePicker(t);
-    } else {
-      showAc(t);
-    }
-  }
-});
-
-document.addEventListener('focusout', function(e){
-  setTimeout(function(){
-    if (document.activeElement !== acTarget) hideAc();
-  }, 150);
-});
-
-window.addEventListener('scroll', function(){ if (acTarget) positionAc(acTarget); }, true);
-window.addEventListener('resize', function(){ if (acTarget) positionAc(acTarget); });
-
-/* ---------- store: Google Sheets via Apps Script ---------- */
-function persistLocal(){lsSet('ddc:cards',Array.from(state.cards.values()));lsSet('ddc:chems',Array.from(state.chems.values()))}
-
-async function gasPost(body){
-  body.pin = getPin();
-  var res = await fetch(GAS_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-    body: JSON.stringify(body)
-  });
-  var data = await res.json();
-  if (!data.
+var COL_B=[['date','Date','date'],['orderNo','

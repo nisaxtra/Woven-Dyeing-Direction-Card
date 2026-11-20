@@ -8,7 +8,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
-/* Layout: archive-first. A search bar over a PRO list, a paper-like card form that autosaves, and a code master. */
 :root{
   --bg:#eceff3; --surface:#ffffff; --ink:#1a2233; --muted:#596378; --line:#d2d8e1;
   --field:#f6f8fb; --accent:#2a3a8c; --accent-ink:#ffffff; --accent-soft:#e1e6f7;
@@ -109,7 +108,7 @@ h1{font-size:24px;letter-spacing:-.01em}
 .ratio{display:flex;align-items:center;gap:8px}
 .ratio span{font-family:var(--mono);color:var(--muted);flex:none;white-space:nowrap}
 .ro-val{font:500 15px var(--mono);padding:4px 0}
-.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:5px}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:5px;-webkit-overflow-scrolling:touch}
 .rt{border-collapse:collapse;width:100%;min-width:800px}
 .rt th{font:500 11px var(--sans);text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:7px 6px;background:var(--field);border-bottom:1px solid var(--line)}
 .rt td{padding:2px 3px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -141,6 +140,21 @@ h1{font-size:24px;letter-spacing:-.01em}
 .addrow{display:grid;grid-template-columns:130px minmax(0,1fr) 140px auto;gap:8px;padding:12px;background:var(--field);border-bottom:1px solid var(--line)}
 .prog{padding:10px 12px;border-radius:5px;background:var(--accent-soft);margin-bottom:12px}
 
+/* Custom iOS-friendly floating autocomplete dropdown */
+.ac-menu{
+  position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--accent);
+  border-radius:6px;box-shadow:0 8px 24px rgba(0,0,0,.18);max-height:240px;overflow-y:auto;
+  -webkit-overflow-scrolling:touch;min-width:220px
+}
+.ac-item{
+  padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;
+  justify-content:space-between;align-items:center;gap:10px;font-size:14px
+}
+.ac-item:last-child{border-bottom:0}
+.ac-item:hover,.ac-item.active{background:var(--accent-soft)}
+.ac-item .ac-code{font-family:var(--mono);font-weight:600;color:var(--accent);white-space:nowrap}
+.ac-item .ac-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:max(20px,env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 14px;border-radius:5px;z-index:40;max-width:calc(100% - 32px)}
 
 @media (max-width:820px){
@@ -153,12 +167,14 @@ h1{font-size:24px;letter-spacing:-.01em}
 @media (max-width:520px){
   .f{grid-template-columns:minmax(0,1fr);gap:2px}.f .hint{grid-column:1}
   .sheet{padding:14px}
+  /* Mencegah auto-zoom Safari iOS saat tap input */
+  input,select,textarea{font-size:16px!important}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 @media print{
   body{background:#fff;color:#000;padding:0;font-size:11px}
-  body::before,.no-print{display:none!important}
+  body::before,.no-print,.ac-menu{display:none!important}
   .wrap{max-width:none}
   .sheet{border:0;padding:0}
   .f input,.f select,.f textarea,.rt input,.rt select{border:0!important;background:none!important;padding:1px 0!important;color:#000!important;appearance:none;-webkit-appearance:none}
@@ -235,7 +251,7 @@ h1{font-size:24px;letter-spacing:-.01em}
           <div class="f"><label for="f-mainPump">Main Pump</label><input id="f-mainPump" data-k="mainPump"></div>
           <div class="f"><label for="f-fabricSpeed">Fabric Speed</label><input id="f-fabricSpeed" data-k="fabricSpeed"></div>
           <div class="f"><label for="f-reelTorque">Reel Torque</label><input id="f-reelTorque" data-k="reelTorque"></div>
-          <div class="f"><label for="f-customer">Customer</label><input id="f-customer" data-k="customer" list="dl-customer"></div>
+          <div class="f"><label for="f-customer">Customer</label><input id="f-customer" data-k="customer" data-ac="customer" autocomplete="off"></div>
           <div class="f"><label>Mode Air</label>
             <div class="seg" role="group" aria-label="Mode Water Ratio" style="width:100%">
               <button type="button" id="wm-ratio" data-wm="ratio" aria-pressed="true" style="flex:1;padding:4px 8px;font-size:12px">Auto (1:x × Kg)</button>
@@ -268,7 +284,7 @@ h1{font-size:24px;letter-spacing:-.01em}
       <div class="f top" style="grid-template-columns:minmax(0,1fr)"><textarea id="f-memo" data-k="memo" rows="3" aria-label="Memo"></textarea></div>
 
       <div class="sign">
-        <label style="display:flex;gap:8px;align-items:center">Pembuat <input id="f-maker" data-k="maker" list="dl-maker" style="width:220px"></label>
+        <label style="display:flex;gap:8px;align-items:center">Pembuat <input id="f-maker" data-k="maker" data-ac="maker" autocomplete="off" style="width:220px"></label>
         <span class="print-only" id="printDate"></span>
       </div>
     </div>
@@ -293,8 +309,7 @@ h1{font-size:24px;letter-spacing:-.01em}
   </section>
 </div>
 
-<datalist id="dl-dye"></datalist><datalist id="dl-chem"></datalist><datalist id="dl-dye-nm"></datalist><datalist id="dl-chem-nm"></datalist>
-<datalist id="dl-machine"></datalist><datalist id="dl-customer"></datalist><datalist id="dl-maker"></datalist>
+<div id="acMenu" class="ac-menu" hidden></div>
 <div id="toast" class="toast" role="status" hidden></div>
 
 <script>
@@ -326,11 +341,11 @@ var newId=function(){return 'c'+Date.now().toString(36)+Math.random().toString(3
 var lsGet=function(k){try{return JSON.parse(localStorage.getItem(k)||'null')}catch(e){return null}};
 var lsSet=function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 
-var COL_A=[['machine','Machine','text','dl-machine'],['pro','Batch No. (PRO)','text'],['batchName','Batch Name','text'],['codeFabric','Code Fabric','text'],['right','Right','text'],['left','Left','text'],['weight','Weight (kg)','number'],['gy','g/y','number'],['pieces','Pieces','number'],['material','Material','text']];
+var COL_A=[['machine','Machine','text','machine'],['pro','Batch No. (PRO)','text'],['batchName','Batch Name','text'],['codeFabric','Code Fabric','text'],['right','Right','text'],['left','Left','text'],['weight','Weight (kg)','number'],['gy','g/y','number'],['pieces','Pieces','number'],['material','Material','text']];
 var COL_B=[['date','Date','date'],['orderNo','Order No.','text'],['orderName','Order Name','text'],['colorNo','Color No','text'],['colorName','Color Name','text'],['hue','Hue','text'],['nozzle','Nozzle','text'],['nozzlePrs','Nozzle Prs','text']];
 var TEXT_KEYS=['machine','pro','batchName','codeFabric','right','left','weight','gy','pieces','material','date','orderNo','orderName','colorNo','colorName','hue','nozzle','nozzlePrs','dyeingPattern','processPattern','mainPump','fabricSpeed','reelTorque','customer','waterMode','ratio','manualL','recipeNo','recipeName','memo','maker'];
 
-var state={cards:new Map(),chems:new Map(),cur:null,dirty:false,writable:true,local:false,loaded:{cards:false,chems:false},open:new Set(),mg:'all',editCode:null,adding:false,imp:null,view:''};
+var state={cards:new Map(),chems:new Map(),cur:null,dirty:false,writable:true,local:false,loaded:{cards:false,chems:false},open:new Set(),mg:'all',editCode:null,adding:false,imp:null,view:'',lists:{machine:[],customer:[],maker:[]}};
 var DB=null, saveTimer=null, saving=false, again=false;
 
 var GAS_URL = 'https://script.google.com/macros/s/AKfycbxJeiaDyTLnvWJf0J_DmEaz9t54t-Nw0fqqr41oKT2RG0a5omXDZc550d8EqQSA9ZJY/exec';
@@ -391,6 +406,136 @@ function updateUserBadge(){
     badge.hidden = true;
   }
 }
+
+/* ---------- Custom iOS Safari-compatible Autocomplete ---------- */
+var acTarget = null, acItems = [], acIndex = -1;
+var acMenu = $('#acMenu');
+
+function hideAc(){
+  acMenu.hidden = true;
+  acTarget = null;
+  acItems = [];
+  acIndex = -1;
+}
+
+function positionAc(el){
+  if (!el || acMenu.hidden) return;
+  var r = el.getBoundingClientRect();
+  var vw = window.innerWidth, vh = window.innerHeight;
+  var w = Math.max(r.width, 260);
+  if (w > vw - 16) w = vw - 16;
+  var left = r.left;
+  if (left + w > vw - 8) left = Math.max(8, vw - w - 8);
+  acMenu.style.width = w + 'px';
+  acMenu.style.left = left + 'px';
+  var spaceBelow = vh - r.bottom - 10;
+  var spaceAbove = r.top - 10;
+  if (spaceBelow < 160 && spaceAbove > spaceBelow) {
+    acMenu.style.top = 'auto';
+    acMenu.style.bottom = (vh - r.top + 4) + 'px';
+    acMenu.style.maxHeight = Math.min(240, spaceAbove) + 'px';
+  } else {
+    acMenu.style.bottom = 'auto';
+    acMenu.style.top = (r.bottom + 4) + 'px';
+    acMenu.style.maxHeight = Math.min(240, Math.max(120, spaceBelow)) + 'px';
+  }
+}
+
+function getAcCandidates(el){
+  var q = String(el.value || '').trim().toLowerCase();
+  if (el.dataset.f === 'code' || el.dataset.f === 'nameSearch') {
+    var prefGroup = el.dataset.t === 'dyes' ? 'dye' : 'chem';
+    var all = Array.from(state.chems.values()).sort(function(a,b){
+      var ga = a.group === prefGroup ? 0 : 1;
+      var gb = b.group === prefGroup ? 0 : 1;
+      return ga - gb || a.name.localeCompare(b.name);
+    });
+    return all.filter(function(item){
+      if (!q) return item.group === prefGroup;
+      return item.code.toLowerCase().indexOf(q) > -1 || item.name.toLowerCase().indexOf(q) > -1;
+    }).slice(0, 40).map(function(item){
+      return { code: item.code, name: item.name, group: item.group };
+    });
+  }
+  var acKey = el.dataset.ac;
+  if (acKey && state.lists[acKey]) {
+    return state.lists[acKey].filter(function(v){
+      return !q || v.toLowerCase().indexOf(q) > -1;
+    }).slice(0, 30).map(function(v){
+      return { text: v };
+    });
+  }
+  return [];
+}
+
+function showAc(el){
+  if (!state.writable || el.disabled || el.readOnly) return;
+  var items = getAcCandidates(el);
+  if (!items.length) { hideAc(); return; }
+  acTarget = el;
+  acItems = items;
+  acIndex = -1;
+  acMenu.innerHTML = items.map(function(it, idx){
+    if (it.code) {
+      return '<div class="ac-item" data-acidx="'+idx+'">'+
+        '<span class="ac-code">'+esc(it.code)+'</span>'+
+        '<span class="ac-name">'+esc(it.name)+'</span>'+
+      '</div>';
+    }
+    return '<div class="ac-item" data-acidx="'+idx+'"><span class="ac-name">'+esc(it.text)+'</span></div>';
+  }).join('');
+  acMenu.hidden = false;
+  positionAc(el);
+}
+
+function applyAcSelection(idx){
+  var el = acTarget, it = acItems[idx];
+  if (!el || !it) return;
+  if (it.code) {
+    var r = state.cur[el.dataset.t][+el.dataset.i];
+    var tr = el.closest('tr');
+    r.code = it.code;
+    var codeIn = tr.querySelector('[data-f="code"]');
+    var nmIn = tr.querySelector('[data-f="nameSearch"]');
+    if (codeIn) codeIn.value = it.code;
+    if (nmIn) { nmIn.value = it.name; nmIn.className = 'nm-in'; }
+    recalc();
+    touch();
+    var ratioIn = tr.querySelector('[data-f="ratio"]');
+    if (ratioIn) ratioIn.focus();
+  } else {
+    el.value = it.text;
+    if (el.dataset.k) {
+      state.cur[el.dataset.k] = it.text;
+      touch();
+    }
+  }
+  hideAc();
+}
+
+// Mencegah blur menutup menu sebelum tap/klik di iOS Safari terdaftar
+acMenu.addEventListener('pointerdown', function(e){
+  var item = e.target.closest('[data-acidx]');
+  if (!item) return;
+  e.preventDefault();
+  applyAcSelection(+item.dataset.acidx);
+});
+
+document.addEventListener('focusin', function(e){
+  var t = e.target;
+  if (t && (t.dataset.f === 'code' || t.dataset.f === 'nameSearch' || t.dataset.ac)) {
+    showAc(t);
+  }
+});
+
+document.addEventListener('focusout', function(e){
+  setTimeout(function(){
+    if (document.activeElement !== acTarget) hideAc();
+  }, 150);
+});
+
+window.addEventListener('scroll', function(){ if (acTarget) positionAc(acTarget); }, true);
+window.addEventListener('resize', function(){ if (acTarget) positionAc(acTarget); });
 
 /* ---------- store: Google Sheets via Apps Script ---------- */
 function persistLocal(){lsSet('ddc:cards',Array.from(state.cards.values()));lsSet('ddc:chems',Array.from(state.chems.values()))}
@@ -497,7 +642,6 @@ async function init(){
   }
   await syncSheets(false);
 }
-function dbErr(e){banner('dberr','Error database ('+(e&&e.message||'error')+').','bad')}
 function applyRO(){
   document.body.classList.toggle('ro',!state.writable);
   $$('.needs-write').forEach(function(b){b.hidden=!state.writable});
@@ -538,6 +682,7 @@ function route(){
   show('arsip');
 }
 function show(v){
+  hideAc();
   state.view=v;
   ['arsip','kartu','master'].forEach(function(n){$('#v-'+n).hidden=n!==v});
   $$('.tabs button').forEach(function(b){if(b.dataset.tab===v)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current')});
@@ -551,7 +696,7 @@ $$('.tabs button').forEach(function(b){b.onclick=function(){
 $('#btnBack').onclick=function(){location.hash='arsip'};
 $('#btnNew').onclick=function(){startNew();location.hash='kartu';route()};
 
-/* ---------- calculation (same formulas as the spreadsheet) ---------- */
+/* ---------- calculation ---------- */
 function calcBase(){
   var c=state.cur,w=parseFloat(c.weight);
   if(c.waterMode==='liter'){
@@ -570,8 +715,8 @@ function chemName(code){code=String(code||'').trim();if(!code)return null;var c=
 
 /* ---------- card editor ---------- */
 function fieldHtml(f){
-  var k=f[0],t=f[2],l=f[3];
-  return '<div class="f"><label for="f-'+k+'">'+f[1]+'</label><input id="f-'+k+'" data-k="'+k+'" type="'+t+'"'+(t==='number'?' step="any" inputmode="decimal"':'')+(l?' list="'+l+'"':'')+(k==='pro'?' autocomplete="off"':'')+'>'+(k==='pro'?'<div class="hint warn" id="proWarn" hidden></div>':'')+'</div>';
+  var k=f[0],t=f[2],ac=f[3];
+  return '<div class="f"><label for="f-'+k+'">'+f[1]+'</label><input id="f-'+k+'" data-k="'+k+'" type="'+t+'"'+(t==='number'?' step="any" inputmode="decimal"':'')+(ac?' data-ac="'+ac+'" autocomplete="off"':'')+(k==='pro'?' autocomplete="off"':'')+'>'+(k==='pro'?'<div class="hint warn" id="proWarn" hidden></div>':'')+'</div>';
 }
 $('#colA').innerHTML=COL_A.map(fieldHtml).join('');
 $('#colB').innerHTML=COL_B.map(fieldHtml).join('');
@@ -636,11 +781,10 @@ function fillForm(){
 var HEAD='<thead><tr><th>Step</th><th>Code</th><th>Chemical Name</th><th>Ratio</th><th>Unit</th><th style="text-align:right;padding-right:10px">Amount</th><th>Feed Spd</th><th>Action</th><th></th></tr></thead>';
 function rowHtml(kind,i,r){
   var a='data-t="'+kind+'" data-i="'+i+'"';
-  var dl='dl-'+(kind==='dyes'?'dye':'chem');
   return '<tr '+a+'>'+
   '<td class="c-step"><input '+a+' data-f="step" value="'+esc(r.step)+'" aria-label="Step"></td>'+
-  '<td class="c-code"><input class="mono" '+a+' data-f="code" list="'+dl+'" autocomplete="off" value="'+esc(r.code)+'" aria-label="Code" placeholder="Kode..."></td>'+
-  '<td><input class="nm-in" '+a+' data-f="nameSearch" list="'+dl+'-nm" autocomplete="off" placeholder="Ketik kode / nama..." aria-label="Chemical Name"></td>'+
+  '<td class="c-code"><input class="mono" '+a+' data-f="code" autocomplete="off" value="'+esc(r.code)+'" aria-label="Code" placeholder="Kode..."></td>'+
+  '<td><input class="nm-in" '+a+' data-f="nameSearch" autocomplete="off" placeholder="Ketik kode / nama..." aria-label="Chemical Name"></td>'+
   '<td class="c-ratio"><input '+a+' data-f="ratio" type="number" step="any" inputmode="decimal" value="'+esc(r.ratio)+'" aria-label="Ratio"></td>'+
   '<td class="c-unit"><select '+a+' data-f="unit" aria-label="Unit"><option value="%"'+(r.unit==='%'?' selected':'')+'>%</option><option value="g/L"'+(r.unit==='g/L'?' selected':'')+'>g/L</option></select></td>'+
   '<td class="c-amt amt" data-amt></td>'+
@@ -697,13 +841,19 @@ function checkPro(){
 var root=$('#sheet');
 function onEdit(e){
   var t=e.target,c=state.cur;if(!c||!state.writable)return;
-  if(t.dataset.k){c[t.dataset.k]=t.value;if(t.dataset.k==='pro')checkPro();if(t.dataset.k==='weight'||t.dataset.k==='ratio'||t.dataset.k==='manualL'){syncWaterUI();recalc()}}
+  if(t.dataset.k){
+    c[t.dataset.k]=t.value;
+    if(t.dataset.k==='pro')checkPro();
+    if(t.dataset.k==='weight'||t.dataset.k==='ratio'||t.dataset.k==='manualL'){syncWaterUI();recalc()}
+    if(t.dataset.ac)showAc(t);
+  }
   else if(t.dataset.f){
     var r=c[t.dataset.t][+t.dataset.i];
     if (t.dataset.f === 'code') {
       var resolved = resolveChemInput(t.value, t.dataset.t);
       r.code = resolved;
       if (resolved !== t.value) t.value = resolved;
+      showAc(t);
     } else if (t.dataset.f === 'nameSearch') {
       var codeFromName = resolveChemInput(t.value, t.dataset.t);
       var codeIn = t.closest('tr').querySelector('[data-f="code"]');
@@ -716,6 +866,7 @@ function onEdit(e){
         if (codeIn) codeIn.value = '';
         t.className = 'nm-in';
       }
+      showAc(t);
     } else {
       r[t.dataset.f]=t.value;
     }
@@ -744,13 +895,19 @@ root.addEventListener('click',function(e){
     return;
   }
   var d=e.target.closest('[data-del]');
-  if(d){var k=d.dataset.t,i=+d.dataset.i;state.cur[k].splice(i,1);if(!state.cur[k].length)state.cur[k].push(blankRow(k));renderRecipe(k);touch();return}
+  if(d){hideAc();var k=d.dataset.t,i=+d.dataset.i;state.cur[k].splice(i,1);if(!state.cur[k].length)state.cur[k].push(blankRow(k));renderRecipe(k);touch();return}
   var a=e.target.closest('[data-add]');
   if(a){var kk=a.dataset.add;state.cur[kk].push(blankRow(kk));renderRecipe(kk);var rows=$$('#t-'+kk+' tbody tr');var f=$('[data-f="code"]',rows[rows.length-1]);if(f)f.focus()}
 });
 root.addEventListener('keydown',function(e){
+  if(!acMenu.hidden && acTarget){
+    if(e.key==='ArrowDown'){e.preventDefault();acIndex=Math.min(acItems.length-1,acIndex+1);$$('.ac-item',acMenu).forEach(function(el,i){el.classList.toggle('active',i===acIndex)});return}
+    if(e.key==='ArrowUp'){e.preventDefault();acIndex=Math.max(0,acIndex-1);$$('.ac-item',acMenu).forEach(function(el,i){el.classList.toggle('active',i===acIndex)});return}
+    if(e.key==='Enter' && acIndex>=0){e.preventDefault();applyAcSelection(acIndex);return}
+    if(e.key==='Escape'){hideAc();return}
+  }
   if(e.key!=='Enter'||!e.target.dataset.f)return;
-  e.preventDefault();var t=e.target,tr=t.closest('tr'),nx=tr.nextElementSibling;
+  e.preventDefault();hideAc();var t=e.target,tr=t.closest('tr'),nx=tr.nextElementSibling;
   if(nx){var n=$('[data-f="'+t.dataset.f+'"]',nx);if(n){n.focus();if(n.select)n.select()}}
 });
 
@@ -823,7 +980,8 @@ $('#btnDup').onclick=function(){
   try{history.replaceState(null,'','#kartu')}catch(x){}fillForm();setStatus('new');updateSaveBtn();
   var p=$('#f-pro');p.focus();toast('Resep disalin. Isi nomor PRO yang baru.');
 };
-/* ---------- print: standalone A4 page that opens the print dialog by itself ---------- */
+
+/* ---------- print ---------- */
 function printDoc(){
   var c=state.cur,b=calcBase();
   var kv=function(rows){return rows.map(function(r){return '<tr><th>'+esc(r[0])+'</th><td>'+esc(r[1])+'</td></tr>'}).join('')};
@@ -920,8 +1078,8 @@ window.addEventListener('beforeprint',function(){$('#printDate').innerHTML='<spa
 /* ---------- archive ---------- */
 function onCards(){
   var cards=Array.from(state.cards.values());
-  function fill(id,key){var s=new Set();cards.forEach(function(c){if(c[key])s.add(String(c[key]).trim())});$(id).innerHTML=Array.from(s).sort().map(function(v){return '<option value="'+esc(v)+'">'}).join('')}
-  fill('#dl-machine','machine');fill('#dl-customer','customer');fill('#dl-maker','maker');
+  function fillList(key){var s=new Set();cards.forEach(function(c){if(c[key])s.add(String(c[key]).trim())});state.lists[key]=Array.from(s).sort()}
+  fillList('machine');fillList('customer');fillList('maker');
   var sel=$('#fMachine'),v=sel.value,ms=new Set();cards.forEach(function(c){if(c.machine)ms.add(String(c.machine).trim())});
   sel.innerHTML='<option value="">Semua mesin</option>'+Array.from(ms).sort().map(function(m){return '<option'+(m===v?' selected':'')+'>'+esc(m)+'</option>'}).join('');
   $('#btnExport').hidden=!window.XLSX||!cards.length;
@@ -1031,14 +1189,6 @@ $('#list').addEventListener('click',function(e){
 
 /* ---------- master kode ---------- */
 function onChems(){
-  var d=[],c=[];
-  Array.from(state.chems.values()).sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(x){
-    var o='<option value="'+esc(x.code)+'" label="'+esc(x.code)+' - '+esc(x.name)+'">'+esc(x.name)+'</option>';(x.group==='chem'?c:d).push(o)});
-  var dn=[],cn=[];
-  Array.from(state.chems.values()).sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(x){
-    var o='<option value="'+esc(x.name)+' ['+esc(x.code)+']"></option>';(x.group==='chem'?cn:dn).push(o)});
-  $('#dl-dye').innerHTML=d.join('');$('#dl-chem').innerHTML=c.join('');
-  $('#dl-dye-nm').innerHTML=dn.join('');$('#dl-chem-nm').innerHTML=cn.join('');
   $('#lblImport').hidden=!window.XLSX||!state.writable;$('#btnExportMaster').hidden=!window.XLSX||!state.chems.size;
   if(state.cur)recalc();
   if(state.view==='master')renderMaster();
@@ -1084,7 +1234,7 @@ $('#mlist').addEventListener('click',async function(e){
   }
 });
 
-/* ---------- Excel: import master, export recap ---------- */
+/* ---------- Excel ---------- */
 async function saveFile(name,wb){
   try{
     var d=window.claude?await window.claude.use('downloads'):null;
